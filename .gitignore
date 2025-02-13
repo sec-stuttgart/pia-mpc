@@ -1,0 +1,15 @@
+# User files
+.vscode
+CMakeUserPresets.json
+*.der
+*.bin
+
+# Build files
+build*
+reports*
+
+# Runtime files
+core
+!core/
+*.tsv
+*.log
