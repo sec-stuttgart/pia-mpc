@@ -1,0 +1,9 @@
+parties:
+  0: pia-mpc-server-1
+  1: pia-mpc-server-2
+  2: pia-mpc-client-1
+  3: pia-mpc-client-2
+  4: pia-mpc-client-3
+  5: pia-mpc-client-4
+session:
+  string: "PIA MPC paper demo, 2 servers, 4 clients"

@@ -1,0 +1,11 @@
+services:
+  server:
+    image: pia-mpc
+    tty: true
+    cpus: 0.0
+    cap_add:
+    - NET_ADMIN
+    volumes:
+    - "..:/workspaces/pia-mpc"
+  client:
+    extends: server

@@ -1,0 +1,11 @@
+# pia-mpc containerfile
+
+# start from hmpc --target development
+FROM hmpc
+WORKDIR /workspaces
+# install vcpkg and python dependencies
+RUN --mount=type=bind,source=requirements.txt,target=/home/hmpc-dev/requirements.txt \
+    git clone https://github.com/microsoft/vcpkg --depth=1 \
+ && $VCPKG_ROOT/bootstrap-vcpkg.sh -disableMetrics \
+ && pip3 install -r $HOME/requirements.txt --no-warn-script-location
+WORKDIR /workspaces/pia-mpc

@@ -1,0 +1,7 @@
+parties:
+  0: localhost:5000
+  1: localhost:5001
+  2: localhost:5002
+  3: localhost:5003
+session:
+  string: "PIA MPC demo, 4 parties"
