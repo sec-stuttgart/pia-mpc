@@ -12,30 +12,25 @@ auto authenticated_share(auto sender, auto receiver, auto const& shape)
 {
     auto shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_share(i, receiver, shape)...
+        return expr::mpc::shares(
+            generate_share(compute_parties.get(i), receiver, shape)...
         );
     });
 
-    auto value = reconstruct(shares);
+    auto value = shares.reconstruct();
     auto mac_key = generate_mac_key();
 
     auto mask_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, hmpc::constants::zero)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, hmpc::constants::zero)...
         );
     });
-    auto mask = reconstruct(mask_shares);
+    auto mask = mask_shares.reconstruct();
 
-    if constexpr (sender == 0)
-    {
-        return value * mac_key - mask + std::get<sender>(mask_shares);
-    }
-    else
-    {
-        return std::get<sender>(mask_shares);
-    }
+    auto i = compute_parties.index_of(sender);
+
+    return mask_shares.get(i) + (value * mac_key - mask);
 }
 
 int main(int argc, char** argv)
@@ -63,17 +58,17 @@ int main(int argc, char** argv)
         authenticated_share(id, hmpc::constants::four, shape)
     );
 
-    auto a = expr::tensor(a_share);
-    auto b = expr::tensor(b_share);
-    auto c = expr::tensor(c_share);
-    auto x = expr::tensor(x_share);
-    auto y = expr::tensor(y_share);
+    auto a = expr::mpc::share(a_share);
+    auto b = expr::mpc::share(b_share);
+    auto c = expr::mpc::share(c_share);
+    auto x = expr::mpc::share(x_share);
+    auto y = expr::mpc::share(y_share);
 
-    auto a_tag = expr::tensor(a_share_tag);
-    auto b_tag = expr::tensor(b_share_tag);
-    auto c_tag = expr::tensor(c_share_tag);
-    auto x_tag = expr::tensor(x_share_tag);
-    auto y_tag = expr::tensor(y_share_tag);
+    auto a_tag = expr::mpc::share(a_share_tag);
+    auto b_tag = expr::mpc::share(b_share_tag);
+    auto c_tag = expr::mpc::share(c_share_tag);
+    auto x_tag = expr::mpc::share(x_share_tag);
+    auto y_tag = expr::mpc::share(y_share_tag);
 
     auto signal = comp::make_tensor<hmpc::bit>(hmpc::shape{});
     {
@@ -90,25 +85,11 @@ int main(int argc, char** argv)
     auto [u_shares, v_shares] = net.all_gather(compute_parties, run(x - a), run(y - b));
     time(start, run, "<-> shares");
 
-    auto u = reconstruct(as_expr(u_shares));
-    auto v = reconstruct(as_expr(v_shares));
+    auto u = expr::mpc::shares(u_shares).reconstruct();
+    auto v = expr::mpc::shares(v_shares).reconstruct();
 
-    auto z = [&]()
-    {
-        if constexpr (id == 0)
-        {
-            return run(
-                c + u * a + b * v + u * v
-            );
-        }
-        else
-        {
-            return run(
-                c + u * a + b * v
-            );
-        }
-    }();
-    auto z_tag = run(c_tag + u * a_tag + b_tag * v);
+    auto z = run(c + u * a + v * b + u * v);
+    auto z_tag = run(c_tag + u * a_tag + v * b_tag + (u * v) * expr::mpc::share(mac_share));
     time(start, run, "compute xy");
 
     fmt::print("[Party {}, {:nhU}]\n", id.value, net.stats());

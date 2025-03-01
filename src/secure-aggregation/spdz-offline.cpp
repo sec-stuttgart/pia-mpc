@@ -6,7 +6,7 @@ auto mac_check(auto& net, auto& run, auto y, auto tag_share, auto mac_key_share)
 {
     auto sigma = tag_share - y * mac_key_share;
     auto sigmas = net.all_gather(compute_parties, run(sigma));
-    return run(reconstruct(as_expr(sigmas)) == expr::constant_of<mod_p{}>);
+    return run(expr::mpc::shares(sigmas).reconstruct() == expr::constant_of<mod_p{}>);
 }
 
 auto check(auto& net, auto& run, auto shares, auto tag_shares, auto mac_key_share, auto const& shape)
@@ -22,11 +22,12 @@ auto check(auto& net, auto& run, auto shares, auto tag_shares, auto mac_key_shar
         statistical_security
     );
 
-    auto y_share = expr::sum(r * shares);
-    auto y_tag_share = expr::sum(r * tag_shares);
+    // TODO: reduction does not work with shares yet
+    auto y_share = expr::mpc::share(expr::sum(r * shares), id, compute_parties);
+    auto y_tag_share = expr::mpc::share(expr::sum(r * tag_shares.value), tag_shares.id, tag_shares.communicator);
 
     auto y_shares = net.all_gather(compute_parties, run(y_share));
-    auto y = reconstruct(as_expr(y_shares));
+    auto y = expr::mpc::shares(y_shares).reconstruct();
 
     return mac_check(
         net,
@@ -47,7 +48,7 @@ auto encrypt_mac_share(auto party, auto mac_share)
 }
 
 template<auto Tag = []{}>
-auto prepare_authentication(auto& net, auto& run, auto& signal, auto private_key, auto keys, auto mac_share, auto homomorphic_mac_share, auto share, auto encrypted_share_c0, auto encrypted_share_c1, auto const& shape)
+auto prepare_authentication(auto& net, auto& run, auto& signal, auto private_key, auto keys, auto mac_share, auto homomorphic_mac_share, auto share, auto encrypted_share, auto const& shape)
 {
     return for_packed_range<party_count>([&](auto... i)
     {
@@ -91,7 +92,7 @@ auto prepare_authentication(auto& net, auto& run, auto& signal, auto private_key
                             statistical_security
                         )
                     );
-                    return expr::bgv::ciphertext_expression{std::get<i>(encrypted_share_c0), std::get<i>(encrypted_share_c1)} * homomorphic_mac_share - mask;
+                    return std::get<i>(encrypted_share) * homomorphic_mac_share - mask;
                 }
                 else
                 {
@@ -100,32 +101,29 @@ auto prepare_authentication(auto& net, auto& run, auto& signal, auto private_key
             }()...
         );
 
-        auto my_c0 = std::make_tuple(
-            std::get<i>(ciphertexts).c0...
-        );
-        auto my_c1 = std::make_tuple(
-            std::get<i>(ciphertexts).c1...
-        );
-
-        auto [c0, c1] = net.all_to_all(compute_parties, std::move(my_c0), std::move(my_c1));
+        auto other_ciphertexts = net.all_to_all(compute_parties, std::move(ciphertexts));
 
         auto tag_share = run(
-            ([&]()
-            {
-                if constexpr (i != id)
+            expr::mpc::share(
+                ([&]()
                 {
-                    return expr::number_theoretic_transform(
-                        expr::tensor<unique_tag(Tag, i)>(std::get<i>(coefficient_masks))
-                    ) + expr::bgv::dec<plaintext>(
-                        private_key,
-                        expr::bgv::ciphertext<unique_tag(Tag, i)>(std::get<i>(c0), std::get<i>(c1))
-                    );
-                }
-                else
-                {
-                    return share * mac_share;
-                }
-            }() + ...)
+                    if constexpr (i != id)
+                    {
+                        return expr::number_theoretic_transform(
+                            expr::tensor<unique_tag(Tag, i)>(std::get<i>(coefficient_masks))
+                        ) + expr::bgv::dec<plaintext>(
+                            private_key,
+                            expr::bgv::ciphertext<unique_tag(Tag, i)>(std::get<i>(other_ciphertexts))
+                        );
+                    }
+                    else
+                    {
+                        return share * mac_share.value;
+                    }
+                }() + ...),
+                id,
+                compute_parties
+            )
         );
 
         return tag_share;
@@ -141,7 +139,7 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
 
         auto [c, a, z, t] = zk(run, std::get<id>(keys), expr::tensor(right_share));
 
-        auto [c0s, c1s, a0s, a1s, zs, tus, tvs, tws] = net.all_gather(compute_parties, std::move(c.c0), std::move(c.c1), std::move(a.c0), std::move(a.c1), std::move(z), std::move(t.u), std::move(t.v), std::move(t.w));
+        auto [cs, as, zs, ts] = net.all_gather(compute_parties, std::move(c), std::move(a), std::move(z), std::move(t));
 
         auto checks = for_packed_range<party_count>([&](auto... i)
         {
@@ -153,10 +151,10 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
                         return verify_zk(
                             run,
                             std::get<i>(keys),
-                            expr::bgv::ciphertext(std::get<i>(c0s), std::get<i>(c1s)),
-                            expr::bgv::ciphertext(std::get<i>(a0s), std::get<i>(a1s)),
+                            expr::bgv::ciphertext(std::get<i>(cs)),
+                            expr::bgv::ciphertext(std::get<i>(as)),
                             expr::tensor(std::get<i>(zs)),
-                            expr::bgv::randomness(std::get<i>(tus), std::get<i>(tvs), std::get<i>(tws))
+                            expr::bgv::randomness(std::get<i>(ts))
                         );
                     }
                     else
@@ -207,7 +205,7 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
                             statistical_security
                         )
                     );
-                    return left_homomorphic_share * expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(c0s), std::get<i>(c1s)) - mask;;
+                    return left_homomorphic_share * expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(cs)) - mask;;
                 }
                 else
                 {
@@ -216,14 +214,7 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
             }()...
         );
 
-        auto my_c0 = std::make_tuple(
-            std::get<i>(ciphertexts).c0...
-        );
-        auto my_c1 = std::make_tuple(
-            std::get<i>(ciphertexts).c1...
-        );
-
-        auto [c0, c1] = net.all_to_all(compute_parties, std::move(my_c0), std::move(my_c1));
+        auto other_ciphertexts = net.all_to_all(compute_parties, std::move(ciphertexts));
 
         auto multiplied_share = run(
             ([&]()
@@ -234,7 +225,7 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
                         expr::tensor<unique_tag(Tag, i)>(std::get<i>(coefficient_masks))
                     ) + expr::bgv::dec<plaintext>(
                         private_key,
-                        expr::bgv::ciphertext<unique_tag(Tag, i)>(std::get<i>(c0), std::get<i>(c1))
+                        expr::bgv::ciphertext<unique_tag(Tag, i)>(std::get<i>(other_ciphertexts))
                     );
                 }
                 else
@@ -244,7 +235,7 @@ auto prepare_triple(auto& net, auto& run, auto& signal, auto private_key, auto k
             }() + ...)
         );
 
-        return std::make_tuple(right_share, c0s, c1s, multiplied_share, checks);
+        return std::make_tuple(right_share, other_ciphertexts, multiplied_share, checks);
     });
 }
 
@@ -270,7 +261,7 @@ int main(int argc, char** argv)
     });
     auto private_key = run(get_private_key(id));
 
-    auto homomorphic_mac_share = run(expr::cast<mod_q>(expr::tensor(mac_share)));
+    auto homomorphic_mac_share = run(expr::cast<mod_q>(expr::mpc::share(mac_share).value));
 
     auto signal = comp::make_tensor<hmpc::bit>(hmpc::shape{});
     {
@@ -295,16 +286,16 @@ int main(int argc, char** argv)
         )
     );
 
-    auto [y, y_c0, y_c1, w, check_0] = prepare_triple(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::tensor(r), expr::tensor(homomorphic_r), shape);
+    auto [y, y_ciphertexts, w, check_0] = prepare_triple(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::tensor(r), expr::tensor(homomorphic_r), shape);
     time(start, run, " triple w ");
 
-    auto [v, v_c0, v_c1, u, check_1] = prepare_triple(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::tensor(r), expr::tensor(homomorphic_r), shape);
+    auto [v, v_ciphertexts, u, check_1] = prepare_triple(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::tensor(r), expr::tensor(homomorphic_r), shape);
     time(start, run, " triple u ");
 
-    auto tag_shares = prepare_authentication(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::tensor(mac_share), expr::tensor(homomorphic_mac_share), expr::tensor(y), as_expr(y_c0), as_expr(y_c1), shape);
+    auto tag_shares = prepare_authentication(net, run, signal, expr::tensor(private_key), as_expr(keys), expr::mpc::share(mac_share), expr::tensor(homomorphic_mac_share), expr::tensor(y), as_expr(y_ciphertexts), shape);
     time(start, run, "  auth  y ");
 
-    auto check_mac = ::check(net, run, expr::tensor(y), expr::tensor(tag_shares), expr::tensor(mac_share), shape);
+    auto check_mac = ::check(net, run, expr::tensor(y), expr::mpc::share(tag_shares), expr::mpc::share(mac_share), shape);
     time(start, run, " mac check");
 
     fmt::print("[Party {}, {:nhU}]\n", id.value, net.stats());

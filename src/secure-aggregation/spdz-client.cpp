@@ -4,16 +4,16 @@ static_assert(input_parties.contains(id));
 
 auto output_delivery(hmpc::net::queue<id>& net, auto& run, auto const& shape)
 {
-    auto [y_shares, r_shares, w_shares, v_shares, u_shares] = net.gather<plaintext, plaintext, plaintext, plaintext, plaintext>(
+    auto [y_shares, r_shares, w_shares, v_shares, u_shares] = net.gather<plaintext_shares, plaintext_shares, plaintext_shares, plaintext_shares, plaintext_shares>(
         compute_parties,
         hmpc::net::communicator{id, id, id, id, id},
         shape, shape, shape, shape, shape
     );
-    auto y = reconstruct(as_expr(y_shares));
-    auto r = reconstruct(as_expr(r_shares));
-    auto w = reconstruct(as_expr(w_shares));
-    auto v = reconstruct(as_expr(v_shares));
-    auto u = reconstruct(as_expr(u_shares));
+    auto y = expr::mpc::shares(y_shares).reconstruct();
+    auto r = expr::mpc::shares(r_shares).reconstruct();
+    auto w = expr::mpc::shares(w_shares).reconstruct();
+    auto v = expr::mpc::shares(v_shares).reconstruct();
+    auto u = expr::mpc::shares(u_shares).reconstruct();
 
     auto [output, check] = run(y, expr::all(w == y * r) bitand expr::all(u == v * r));
     {

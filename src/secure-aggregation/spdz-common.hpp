@@ -9,13 +9,17 @@ constexpr auto generate_extra_share(auto sender, auto receiver, auto const& shap
 {
     using rng = hmpc::default_random_engine;
     static constexpr hmpc::core::limb_array<rng::key_size, rng::value_type> key = {44};
-    return expr::random::uniform<plaintext>(
-        expr::random::number_generator(
-            key.span(hmpc::access::read),
-            hmpc::index{share_id, hmpc::constant_cast<hmpc::size>(sender), hmpc::constant_cast<hmpc::size>(receiver)},
-            hmpc::shape{extra_share_count, party_count_constant, input_party_count_constant}
+    return expr::mpc::share(
+        expr::random::uniform<plaintext>(
+            expr::random::number_generator(
+                key.span(hmpc::access::read),
+                hmpc::index{share_id, hmpc::constant_cast<hmpc::size>(sender), hmpc::constant_cast<hmpc::size>(receiver)},
+                hmpc::shape{extra_share_count, party_count_constant, input_party_count_constant}
+            ),
+            shape,
+            statistical_security
         ),
-        shape,
-        statistical_security
+        sender,
+        compute_parties
     );
 }

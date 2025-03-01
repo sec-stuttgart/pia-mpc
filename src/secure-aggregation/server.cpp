@@ -120,7 +120,7 @@ int main(int argc, char** argv)
     auto encrypted_mask_shares = for_packed_range<input_party_count>([&](auto... i)
     {
         return run(
-            encrypt(id, i, expr::tensor(std::get<i>(mask_shares)))...
+            encrypt(id, i, expr::mpc::share(std::get<i>(mask_shares)).value)...
         );
     });
     auto encrypted_mask_share_tag_shares = for_packed_range<party_count>([&](auto... i)
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
                     auto ciphertexts = tag_input_ciphertexts(
                         get_prf_key(i),
                         get_prg_key(i),
-                        expr::cast<mod_q>(generate_mac_share(i)),
+                        expr::cast<mod_q>(generate_mac_share(compute_parties.get(i)).value),
                         id,
                         expr::bgv::key(key),
                         encrypted_mask_shares,
@@ -175,17 +175,12 @@ int main(int argc, char** argv)
     });
     time(start, "<-  masked");
 
-    auto input_shares = [&]()
+    auto input_shares = for_packed_range<input_party_count>([&](auto... i)
     {
-        if constexpr (id == 0)
-        {
-            return add(as_expr(mask_shares), as_expr(masked));
-        }
-        else
-        {
-            return as_expr(mask_shares);
-        }
-    }();
+        return std::make_tuple(
+            expr::mpc::share(std::get<i>(mask_shares)) + expr::tensor(std::get<i>(masked))...
+        );
+    });
     auto input_share_tags = as_expr(mask_share_tags);
 
     auto output_share = run(sum(input_shares));
@@ -203,7 +198,7 @@ int main(int argc, char** argv)
 
     auto [mac_shares, prf_keys_storage, prg_keys_storage] = net.all_gather(compute_parties, all_parties, std::move(mac_share), std::move(prf_key), std::move(prg_key));
     time(start, run, "<->  keys ");
-    auto mac_key = run(reconstruct(as_expr(mac_shares)));
+    auto mac_key = run(expr::mpc::shares(mac_shares).reconstruct());
     auto prf_keys = for_packed_range<party_count>([&](auto... i)
     {
         return std::make_tuple(
@@ -227,7 +222,7 @@ int main(int argc, char** argv)
                     auto ciphertexts = tag_input_ciphertexts(
                         std::get<i>(prf_keys),
                         std::get<i>(prg_keys),
-                        expr::cast<mod_q>(expr::tensor(std::get<i>(mac_shares))),
+                        expr::cast<mod_q>(expr::mpc::shares(mac_shares).get(i).value),
                         id,
                         expr::bgv::key(key),
                         encrypted_mask_shares,
@@ -285,7 +280,7 @@ int main(int argc, char** argv)
 
                     auto expected = tag(
                         expr::tensor(mac_key),
-                        expr::tensor(std::get<i>(output_shares)),
+                        expr::mpc::shares(output_shares).get(i),
                         output_randomness
                     );
 

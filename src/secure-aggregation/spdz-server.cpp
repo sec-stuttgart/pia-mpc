@@ -22,104 +22,88 @@ auto authenticated_share(auto sender, auto receiver, auto const& shape)
 {
     auto shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_share(i, receiver, shape)...
+        return expr::mpc::shares(
+            generate_share(compute_parties.get(i), receiver, shape)...
         );
     });
 
-    auto value = reconstruct(shares);
+    auto value = shares.reconstruct();
     auto mac_key = generate_mac_key();
 
     auto mask_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, hmpc::constants::zero)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, hmpc::constants::zero)...
         );
     });
-    auto mask = reconstruct(mask_shares);
+    auto mask = mask_shares.reconstruct();
 
-    if constexpr (sender == 0)
-    {
-        return value * mac_key - mask + std::get<sender>(mask_shares);
-    }
-    else
-    {
-        return std::get<sender>(mask_shares);
-    }
+    auto i = compute_parties.index_of(sender);
+
+    return mask_shares.get(i) + (value * mac_key - mask);
 }
 
 auto generate_input_tuple(auto sender, auto receiver, auto const& shape, auto r_id, auto v_id, auto w_id, auto u_id)
 {
     auto y_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_share(i, receiver, shape)...
+        return expr::mpc::shares(
+            generate_share(compute_parties.get(i), receiver, shape)...
         );
     });
 
     auto r_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, r_id)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, r_id)...
         );
     });
 
     auto v_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, v_id)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, v_id)...
         );
     });
 
     auto mask_w_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, w_id)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, w_id)...
         );
     });
 
     auto mask_u_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_extra_share(i, receiver, shape, u_id)...
+        return expr::mpc::shares(
+            generate_extra_share(compute_parties.get(i), receiver, shape, u_id)...
         );
     });
 
-    auto y = reconstruct(y_shares);
-    auto r = reconstruct(r_shares);
-    auto v = reconstruct(v_shares);
-    auto mask_w = reconstruct(mask_w_shares);
-    auto mask_u = reconstruct(mask_u_shares);
+    auto y = y_shares.reconstruct();
+    auto r = r_shares.reconstruct();
+    auto v = v_shares.reconstruct();
+    auto mask_w = mask_w_shares.reconstruct();
+    auto mask_u = mask_u_shares.reconstruct();
     auto w = y * r;
     auto u = v * r;
 
-    if constexpr (sender == 0)
-    {
-        return std::make_tuple(
-            std::get<sender>(y_shares),
-            std::get<sender>(r_shares),
-            w - mask_w + std::get<sender>(mask_w_shares),
-            std::get<sender>(v_shares),
-            u - mask_u + std::get<sender>(mask_u_shares)
-        );
-    }
-    else
-    {
-        return std::make_tuple(
-            std::get<sender>(y_shares),
-            std::get<sender>(r_shares),
-            std::get<sender>(mask_w_shares),
-            std::get<sender>(v_shares),
-            std::get<sender>(mask_u_shares)
-        );
-    }
+    auto i = compute_parties.index_of(sender);
+
+    return std::make_tuple(
+        y_shares.get(i),
+        r_shares.get(i),
+        mask_w_shares.get(i) + (w - mask_w),
+        v_shares.get(i),
+        mask_u_shares.get(i) + (u - mask_u)
+    );
 }
 
 auto mac_check(auto& net, auto& run, auto y, auto tag_share, auto mac_key_share)
 {
     auto sigma = tag_share - y * mac_key_share;
     auto sigmas = net.all_gather(compute_parties, run(sigma));
-    return run(reconstruct(as_expr(sigmas)) == expr::constant_of<mod_p{}>);
+    return run(expr::mpc::shares(sigmas).reconstruct() == expr::constant_of<mod_p{}>);
 }
 
 auto check(auto& net, auto& run, auto value, auto tag_share, auto mac_key_share, auto const& shape)
@@ -139,7 +123,7 @@ auto check(auto& net, auto& run, auto value, auto tag_share, auto mac_key_share,
         net,
         run,
         expr::sum(r * value),
-        expr::sum(r * tag_share),
+        expr::mpc::share(expr::sum(r * tag_share.value), tag_share.id, tag_share.communicator), // TODO: reduction does not work with shares yet
         mac_key_share
     );
 }
@@ -209,27 +193,20 @@ int main(int argc, char** argv)
     });
     time(start, "<-  masked");
 
-    auto input_shares = [&]()
+    auto output_share = run(for_packed_range<input_party_count>([&](auto... i)
     {
-        if constexpr (id == 0)
-        {
-            return add(as_expr(mask_shares), as_expr(masked));
-        }
-        else
-        {
-            return as_expr(mask_shares);
-        }
-    }();
-    auto input_tag_shares = add(as_expr(mask_tag_shares), mul_scalar(expr::tensor(mac_share), as_expr(masked)));
-
-    auto output_share = run(sum(input_shares));
-    auto output_tag_share = run(sum(input_tag_shares));
+        return ((expr::mpc::share(std::get<i>(mask_shares)) + expr::tensor(std::get<i>(masked))) + ...);
+    }));
+    auto output_tag_share = run(for_packed_range<input_party_count>([&](auto... i)
+    {
+        return ((expr::mpc::share(std::get<i>(mask_tag_shares)) + expr::tensor(std::get<i>(masked)) * expr::mpc::share(mac_share)) + ...);
+    }));
     time(start, run, "compute fn");
 
     auto output_shares = net.all_gather(compute_parties, all_parties, std::move(output_share));
     time(start, "<-> output");
 
-    auto check = ::check(net, run, reconstruct(as_expr(output_shares)), expr::tensor(output_tag_share), expr::tensor(mac_share), shape);
+    auto check = ::check(net, run, expr::mpc::shares(output_shares).reconstruct(), expr::mpc::share(output_tag_share), expr::mpc::share(mac_share), shape);
     time(start, run, " mac check");
     {
         comp::host_accessor ok(check, hmpc::access::read);

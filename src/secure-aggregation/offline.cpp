@@ -90,12 +90,12 @@ int main(int argc, char** argv)
 
     auto start = ::start();
 
-    auto share = run(expr::random::uniform<plaintext>(shape, statistical_security));
+    auto share = run(expr::mpc::share(expr::random::uniform<plaintext>(shape, statistical_security), id, compute_parties));
 
-    auto [c, a, z, t] = zk(run, expr::bgv::key(std::get<id>(keys)), expr::tensor(share));
+    auto [c, a, z, t] = zk(run, expr::bgv::key(std::get<id>(keys)), expr::mpc::share(share).value);
     time(start, run, "compute zk");
 
-    auto [c0s, c1s, a0s, a1s, zs, tus, tvs, tws] = net.all_gather(compute_parties, std::move(c.c0), std::move(c.c1), std::move(a.c0), std::move(a.c1), std::move(z), std::move(t.u), std::move(t.v), std::move(t.w));
+    auto [cs, as, zs, ts] = net.all_gather(compute_parties, std::move(c), std::move(a), std::move(z), std::move(t));
     time(start, run, "<->  zks  ");
 
     auto checks = for_packed_range<party_count>([&](auto... i)
@@ -108,10 +108,10 @@ int main(int argc, char** argv)
                     return verify_zk(
                         run,
                         expr::bgv::key(std::get<i>(keys)),
-                        expr::bgv::ciphertext(std::get<i>(c0s), std::get<i>(c1s)),
-                        expr::bgv::ciphertext(std::get<i>(a0s), std::get<i>(a1s)),
+                        expr::bgv::ciphertext(std::get<i>(cs)),
+                        expr::bgv::ciphertext(std::get<i>(as)),
                         expr::tensor(std::get<i>(zs)),
-                        expr::bgv::randomness(std::get<i>(tus), std::get<i>(tvs), std::get<i>(tws))
+                        expr::bgv::randomness(std::get<i>(ts))
                     );
                 }
                 else
@@ -134,11 +134,11 @@ int main(int argc, char** argv)
                     return tag_ciphertext(
                         prf_key.span(hmpc::access::read),
                         prg_key.span(hmpc::access::read),
-                        expr::cast<mod_q>(expr::tensor<unique_tag(i, hmpc::constants::zero)>(mac_share)),
+                        expr::cast<mod_q>(expr::mpc::share(mac_share).value),
                         i,
                         hmpc::constants::zero,
                         expr::bgv::key<unique_tag(i, hmpc::constants::one)>(std::get<i>(keys)),
-                        expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(c0s), std::get<i>(c1s)),
+                        expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(cs)),
                         shape
                     );
                 }
@@ -149,14 +149,7 @@ int main(int argc, char** argv)
             }()...
         );
 
-        auto my_c0 = std::make_tuple(
-            std::get<i>(ciphertexts).c0...
-        );
-        auto my_c1 = std::make_tuple(
-            std::get<i>(ciphertexts).c1...
-        );
-
-        auto [c0, c1] = net.all_to_all(compute_parties, std::move(my_c0), std::move(my_c1));
+        auto other_ciphertexts = net.all_to_all(compute_parties, std::move(ciphertexts));
         time(start, run, "<-> c txt ");
 
         return run(
@@ -164,13 +157,13 @@ int main(int argc, char** argv)
             {
                 if constexpr (i == id)
                 {
-                    return expr::tensor<unique_tag(hmpc::constants::zero)>(share) * expr::tensor<unique_tag(hmpc::constants::one)>(mac_share) + generate_mac_randomness_share(prf_key.span(hmpc::access::read), id, hmpc::constants::zero, shape);
+                    return expr::mpc::share(share).value * expr::mpc::share(mac_share).value + generate_mac_randomness_share(prf_key.span(hmpc::access::read), id, hmpc::constants::zero, shape);
                 }
                 else
                 {
                     return expr::bgv::dec<plaintext>(
                         expr::tensor<unique_tag(hmpc::constants::two)>(private_key),
-                        expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(c0), std::get<i>(c1))
+                        expr::bgv::ciphertext<unique_tag(i, hmpc::constants::two)>(std::get<i>(other_ciphertexts))
                     );
                 }
             }() + ...)

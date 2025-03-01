@@ -97,7 +97,7 @@ int main(int argc, char** argv)
     });
     auto mac_shares = for_packed_range<party_count>([&](auto... i)
     {
-        return run(hmpc::as_tuple, generate_mac_share(i)...);
+        return run(hmpc::as_tuple, generate_mac_share(compute_parties.get(i))...);
     });
     auto prf_keys = for_packed_range<party_count>([&](auto... i)
     {
@@ -126,7 +126,10 @@ int main(int argc, char** argv)
     auto symmetric_key = std::get<id>(symmetric_keys);
     auto nonce = std::get<id>(nonces);
 
-    auto mac_key = run(reconstruct(as_expr(mac_shares)));
+    auto mac_key = for_packed_range<party_count>([&](auto... i)
+    {
+        return run(expr::mpc::shares(expr::mpc::share(std::get<i>(mac_shares))...).reconstruct());
+    });
 
     auto [a_share, b_share, c_share, x_share, y_share, a_share_tag, b_share_tag, c_share_tag, x_share_tag, y_share_tag] = run(
         generate_share(id, hmpc::constants::zero, shape),
@@ -141,11 +144,11 @@ int main(int argc, char** argv)
         generate_tag(id, hmpc::constants::four, shape)
     );
 
-    auto a = expr::tensor(a_share);
-    auto b = expr::tensor(b_share);
-    auto c = expr::tensor(c_share);
-    auto x = expr::tensor(x_share);
-    auto y = expr::tensor(y_share);
+    auto a = expr::mpc::share(a_share);
+    auto b = expr::mpc::share(b_share);
+    auto c = expr::mpc::share(c_share);
+    auto x = expr::mpc::share(x_share);
+    auto y = expr::mpc::share(y_share);
 
     auto a_tag = expr::tensor(a_share_tag);
     auto b_tag = expr::tensor(b_share_tag);
@@ -154,9 +157,9 @@ int main(int argc, char** argv)
     auto y_tag = expr::tensor(y_share_tag);
 
     auto encrypted_triple_shares = run(
-        encrypt(id, hmpc::constants::zero, a),
-        encrypt(id, hmpc::constants::one, b),
-        encrypt(id, hmpc::constants::two, c)
+        encrypt(id, hmpc::constants::zero, a.value),
+        encrypt(id, hmpc::constants::one, b.value),
+        encrypt(id, hmpc::constants::two, c.value)
     );
     auto encrypted_triple_share_tag_shares = for_packed_range<party_count>([&](auto... i)
     {
@@ -168,7 +171,7 @@ int main(int argc, char** argv)
                     auto ciphertexts = tag_triple_ciphertexts(
                         get_prf_key(i),
                         get_prg_key(i),
-                        expr::cast<mod_q>(generate_mac_share(i)),
+                        expr::cast<mod_q>(generate_mac_share(compute_parties.get(i)).value),
                         id,
                         expr::bgv::key(key),
                         encrypted_triple_shares,
@@ -217,24 +220,10 @@ int main(int argc, char** argv)
     );
     time(start, "<-> shares");
 
-    auto u = reconstruct(as_expr(u_shares));
-    auto v = reconstruct(as_expr(v_shares));
+    auto u = expr::mpc::shares(u_shares).reconstruct();
+    auto v = expr::mpc::shares(v_shares).reconstruct();
 
-    auto z = [&]()
-    {
-        if constexpr (id == 0)
-        {
-            return run(
-                c + u * a + b * v + u * v
-            );
-        }
-        else
-        {
-            return run(
-                c + u * a + b * v
-            );
-        }
-    }();
+    auto z = run(c + u * a + v * b + u * v);
     auto z_tag = run(c_tag + u * a_tag + b_tag * v);
     time(start, run, "compute xy");
 
@@ -248,7 +237,7 @@ int main(int argc, char** argv)
                     auto ciphertexts = tag_triple_ciphertexts(
                         std::get<i>(prf_keys),
                         std::get<i>(prg_keys),
-                        expr::cast<mod_q>(expr::tensor(std::get<i>(mac_shares))),
+                        expr::cast<mod_q>(expr::mpc::share(std::get<i>(mac_shares)).value),
                         id,
                         expr::bgv::key(key),
                         encrypted_triple_shares,
@@ -293,7 +282,7 @@ int main(int argc, char** argv)
 
                     auto expected_u = tag(
                         expr::tensor(mac_key),
-                        expr::tensor(std::get<i>(u_shares)),
+                        expr::mpc::shares(u_shares).get(i),
                         u_randomness
                     );
 
@@ -304,7 +293,7 @@ int main(int argc, char** argv)
 
                     auto expected_v = tag(
                         expr::tensor(mac_key),
-                        expr::tensor(std::get<i>(v_shares)),
+                        expr::mpc::shares(v_shares).get(i),
                         v_randomness
                     );
 

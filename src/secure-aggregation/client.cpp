@@ -26,22 +26,22 @@ int main(int argc, char** argv)
 
     auto start = ::start();
 
-    auto [mask_shares, encrypted_mask_share_tags] = net.gather<plaintext, rng::value_type>(compute_parties, hmpc::net::communicator{id, id}, shape, encrypted_shape);
+    auto [mask_shares, encrypted_mask_share_tags] = net.gather<plaintext_shares, rng::value_type>(compute_parties, hmpc::net::communicator{id, id}, shape, encrypted_shape);
     time(start, "<-  shares");
 
-    auto mask = reconstruct(as_expr(mask_shares));
+    auto mask = expr::mpc::shares(mask_shares).reconstruct();
     auto masked = run(expr::tensor(input) - mask);
     time(start, run, "mask input");
 
     net.broadcast(compute_parties, id, masked);
     time(start, " -> masked");
 
-    auto [output_shares, encrypted_output_share_tags] = net.all_gather<plaintext, rng::value_type>(compute_parties, all_parties, shape, encrypted_shape);
+    auto [output_shares, encrypted_output_share_tags] = net.all_gather<plaintext_shares, rng::value_type>(compute_parties, all_parties, shape, encrypted_shape);
     time(start, "<-  output");
 
-    auto [mac_shares, prf_keys_storage, prg_keys_storage] = net.all_gather<mod_p, prf_key_type, prg_key_type>(compute_parties, all_parties, hmpc::shape{}, hmpc::shapeless, hmpc::shapeless);
+    auto [mac_shares, prf_keys_storage, prg_keys_storage] = net.all_gather<mod_p_shares, prf_key_type, prg_key_type>(compute_parties, all_parties, hmpc::shape{}, hmpc::shapeless, hmpc::shapeless);
     time(start, run, "<-   keys ");
-    auto mac_key = run(reconstruct(as_expr(mac_shares)));
+    auto mac_key = run(expr::mpc::shares(mac_shares).reconstruct());
     auto prf_keys = for_packed_range<party_count>([&](auto... i)
     {
         return std::make_tuple(
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
                         expr::crypto::cipher(symmetric_key, nonce),
                         expr::tensor(std::get<i>(encrypted_mask_share_tags))
                     );
-                auto expected = tag(expr::tensor(mac_key), expr::tensor(std::get<i>(mask_shares)), randomness);
+                auto expected = tag(expr::tensor(mac_key), expr::mpc::shares(mask_shares).get(i), randomness);
 
                 return expr::all(
                     actual == expected

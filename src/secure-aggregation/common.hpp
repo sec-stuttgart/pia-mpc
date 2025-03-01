@@ -13,6 +13,7 @@
 #include <hmpc/expr/crypto/cipher.hpp>
 #include <hmpc/expr/constant.hpp>
 #include <hmpc/expr/matrix_vector_product.hpp>
+#include <hmpc/expr/mpc/share.hpp>
 #include <hmpc/expr/number_theoretic_transform.hpp>
 #include <hmpc/expr/random/binomial_from_number_generator.hpp>
 #include <hmpc/expr/random/uniform_from_number_generator.hpp>
@@ -91,8 +92,10 @@ using mod_q = Rq::element_type;
 using Rp = ints::poly_mod<p, N, ints::coefficient_representation>;
 using ntt_Rp = ints::traits::number_theoretic_transform_type_t<Rp>;
 using mod_p = Rp::element_type;
+using mod_p_shares = comp::mpc::shares<mod_p, PIA_MPC_COMPUTE_PARTIES>;
 
 using plaintext = ntt_Rp;
+using plaintext_shares = comp::mpc::shares<plaintext, PIA_MPC_COMPUTE_PARTIES>;
 
 constexpr auto p_value = expr::constant_of<mod_q{p}>;
 
@@ -221,12 +224,6 @@ constexpr auto equal_ciphertexts(Left left, Right right) noexcept
     });
 }
 
-template<typename Expressions>
-constexpr auto reconstruct(Expressions expr) noexcept
-{
-    return sum(expr);
-}
-
 using rng = hmpc::default_random_engine;
 using prf_key_type = hmpc::core::limb_array<rng::key_size, rng::value_type>;
 using prg_key_type = prf_key_type;
@@ -266,14 +263,18 @@ constexpr auto get_prg_keys() noexcept
 constexpr auto generate_mac_share(auto i) noexcept
 {
     static constexpr hmpc::core::limb_array<rng::key_size, rng::value_type> key = {42};
-    return expr::random::uniform<mod_p>(
-        expr::random::number_generator(
-            key.span(hmpc::access::read),
-            hmpc::index{hmpc::constant_cast<hmpc::size>(i)},
-            hmpc::shape{party_count_constant}
+    return expr::mpc::share(
+        expr::random::uniform<mod_p>(
+            expr::random::number_generator(
+                key.span(hmpc::access::read),
+                hmpc::index{hmpc::constant_cast<hmpc::size>(i)},
+                hmpc::shape{party_count_constant}
+            ),
+            hmpc::shape{},
+            statistical_security
         ),
-        hmpc::shape{},
-        statistical_security
+        i,
+        compute_parties
     );
 }
 
@@ -315,7 +316,7 @@ constexpr auto generate_input_mac_randomness(auto prf_keys, auto sender, auto co
 
 constexpr auto tag(auto mac_key, auto share, auto randomness) noexcept
 {
-    return mac_key * share + randomness;
+    return mac_key * share.value + randomness;
 }
 
 // for this demo, the share is deterministically derived from a prf key with value 44 and nonce `sender`
@@ -338,29 +339,33 @@ constexpr auto generate_mac_shares() noexcept
 {
     return for_packed_range<party_count>([&](auto... i)
     {
-        return std::make_tuple(
-            generate_mac_share(i)...
+        return expr::mpc::shares(
+            generate_mac_share(compute_parties.get(i))...
         );
     });
 }
 
 constexpr auto generate_mac_key() noexcept
 {
-    return reconstruct(generate_mac_shares());
+    return generate_mac_shares().reconstruct();
 }
 
 // for this demo, the share is deterministically derived from a prf key with value 43 and nonce `(sender, receiver)`
 constexpr auto generate_share(auto sender, auto receiver, auto const& shape) noexcept
 {
     static constexpr hmpc::core::limb_array<rng::key_size, rng::value_type> key = {43};
-    return expr::random::uniform<plaintext>(
-        expr::random::number_generator(
-            key.span(hmpc::access::read),
-            hmpc::index{hmpc::constant_cast<hmpc::size>(sender), hmpc::constant_cast<hmpc::size>(receiver)},
-            hmpc::shape{party_count_constant, input_party_count_constant}
+    return expr::mpc::share(
+        expr::random::uniform<plaintext>(
+            expr::random::number_generator(
+                key.span(hmpc::access::read),
+                hmpc::index{hmpc::constant_cast<hmpc::size>(sender), hmpc::constant_cast<hmpc::size>(receiver)},
+                hmpc::shape{party_count_constant, input_party_count_constant}
+            ),
+            shape,
+            statistical_security
         ),
-        shape,
-        statistical_security
+        sender,
+        compute_parties
     );
 }
 
