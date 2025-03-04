@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25.0)
 
 project(pia-mpc CXX)
 
-find_package(hmpc 0.5.1 REQUIRED)
+find_package(hmpc 0.5.2 REQUIRED)
 find_package(FMT 10 REQUIRED)
 
 

@@ -1,3 +1,4 @@
 [submodule "hmpc"]
-	path = hmpc
-	url = https://github.com/iko4/hmpc
+    path = hmpc
+    url = https://github.com/iko4/hmpc
+    branch = main
