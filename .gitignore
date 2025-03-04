@@ -1,4 +1,5 @@
 # User files
+.venv
 .vscode
 CMakeUserPresets.json
 *.der
