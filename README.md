@@ -6,7 +6,21 @@ Additionally, we give code to reproduce the parameter and complexity estimation 
 To reproduce our results, you need [Docker](https://www.docker.com/) and [Python](https://www.python.org) installed on your machine.
 We use the [hmpc](https://github.com/iko4/hmpc) library for our implementation and a few [Python dependencies](requirements.txt) to automate running the experiments.
 Internally, the container images use [CMake](https://cmake.org/) and [Rust](https://rust-lang.org) to build our implementation, as well as [oneAPI](https://oneapi.io) and (optionally) [CUDA](https://developer.nvidia.com/cuda-toolkit) to run it.
+The containerized build process downloads most of these components and you need might implicitly agree to the corresponding licenses and/or end user agreements:
 
+- [oneAPI runtime](https://github.com/intel/oneapi-containers/blob/master/licensing/oneapi-runtime-2024.2.1-0-devel-ubuntu22.04/2024.2/licensing/2024.2/license.htm)
+- [CMake](https://cmake.org/licensing/)
+- [vcpkg](https://github.com/microsoft/vcpkg/blob/master/README.md#licence)
+    - [Catch2](https://github.com/catchorg/Catch2/blob/devel/LICENSE.txt)
+    - [fmt](https://github.com/fmtlib/fmt/blob/master/LICENSE)
+- [LLVM](https://github.com/intel/llvm/blob/sycl/sycl/LICENSE.TXT)
+- [Rust](https://www.rust-lang.org/policies/licenses)
+- [hmpc](https://github.com/iko4/hmpc/blob/main/LICENSE)
+- other (binary) apt packages installed in the container
+- other (binary) Python packages installed in the container
+
+Note that you will be redistributing these components if you distribute a container image built as described below.
+The code in this repository is distributed under the [MIT license](LICENSE).
 
 ## Preparing the Python Environment 📦
 
