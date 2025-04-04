@@ -22,6 +22,80 @@ The containerized build process downloads most of these components and you need 
 Note that you will be redistributing these components if you distribute a container image built as described below.
 The code in this repository is distributed under the [MIT license](LICENSE).
 
+
+## Structure of the Artifact 🗂️
+
+This artifact contains code to build the implementation for the paper, as well as scripts to run the experiments.
+In the sections below, we describe how to build and run the experiments.
+The artifact is structured as follows.
+
+- Benchmarking the verification of the authentication
+
+    - Code: [./src/drowning-bgv.cpp](src/drowning-bgv.cpp)
+
+    - Script to run the experiment: [./scripts/authentication.py](scripts/authentication.py)
+
+- Benchmarking the verification of MACs
+    - Code: [./src/mac.cpp](src/mac.cpp)
+
+    - Script to run the experiment: [./scripts/mac.py](scripts/mac.py)
+
+- Benchmarking multiplications in the online phase
+
+    - Code for our protocol: [./src/bench-multiply/server.cpp](src/bench-multiply/server.cpp)
+
+    - Code for the SPDZ protocol: [./src/bench-multiply/spdz-server.cpp](src/bench-multiply/spdz-server.cpp)
+
+    - Script to run and plot the experiment: [./scripts/secure-aggregation.py](scripts/secure-aggregation.py)
+
+- Benchmarking secure aggregation in the online phase
+
+    - Code for our protocol (clients): [./src/secure-aggregation/client.cpp](src/secure-aggregation/client.cpp)
+
+    - Code for our protocol (servers): [./src/secure-aggregation/server.cpp](src/secure-aggregation/server.cpp)
+
+    - Shared code between clients and servers: [./src/secure-aggregation/common.hpp](src/secure-aggregation/common.hpp)
+
+    - Code for the SPDZ protocol (clients): [./src/secure-aggregation/spdz-client.cpp](src/secure-aggregation/spdz-client.cpp)
+
+    - Code for the SPDZ protocol (servers): [./src/secure-aggregation/spdz-server.cpp](src/secure-aggregation/spdz-server.cpp)
+
+    - Shared code between clients and servers for the SPDZ protocol: [./src/secure-aggregation/spdz-common.hpp](src/secure-aggregation/spdz-common.hpp)
+
+    - Script to run and plot the experiment: [./scripts/secure-aggregation.py](scripts/secure-aggregation.py)
+
+- Benchmarking secure aggregation in the offline phase
+
+    - Code for our protocol (servers): [./src/secure-aggregation/offline.cpp](src/secure-aggregation/offline.cpp)
+
+    - Code for the SPDZ protocol (servers): [./src/secure-aggregation/spdz-offline.cpp](src/secure-aggregation/spdz-offline.cpp)
+
+    - Script to run and plot the experiment: [./scripts/secure-aggregation.py](scripts/secure-aggregation.py)
+
+- Parameter estimation for the BGV encryption scheme
+
+    - Script: [./scripts/bgv-parameters.py](scripts/bgv-parameters.py)
+
+- Complexity estimation of the related work
+
+    - Script: [./scripts/complexity.py](scripts/complexity.py)
+
+- Other files:
+
+    - Our main dependency, the [hmpc](https://github.com/iko4/hmpc) library, is integrated as git submodule: [./hmpc](hmpc)
+
+        If you already have hmpc installed or a container image containing hmpc, you do not need to use it as submodule.
+        Otherwise, we describe below how to build a container image with hmpc installed.
+
+    - CMake files to build the code: [./CMakeLists.txt](CMakeLists.txt), [./src/bench-multiply/CMakeLists.txt](src/bench-multiply/CMakeLists.txt) (for the multiplication benchmark), and [./src/secure-aggregation/CMakeLists.txt](src/secure-aggregation/CMakeLists.txt) (for the secure aggregation benchmark)
+
+    - A script to generate tables for the parameter and complexity estimation (see below): [./scripts/tables.sh](scripts/tables.sh)
+
+    - Docker compose files to run the MPC parties as different services: [./config/compose.yaml](config/compose.yaml) and [./config/cuda/compose.yaml](config/cuda/compose.yaml) (for GPU enabled benchmarks)
+
+    - Config files for the MPC parties, mostly indicating which party can be reached via which hostname and port: [./config/mpc.yaml](config/mpc.yaml) (for local benchmarks), [./config/compose-2-2.mpc.yaml](config/compose-2-2.mpc.yaml) (for benchmarks using Docker compose with 2 servers and 2 clients), etc.
+
+
 ## Preparing the Python Environment 📦
 
 We recommend that you use a Python virtual environments to install all required Python dependencies.
@@ -65,6 +139,8 @@ docker buildx build --tag hmpc --build-arg cuda_version="${CUDA_VERSION:?}" --bu
 Note: For the CUDA container, you can replace the CUDA architecture (`cuda_arch`) by a value matching your GPU.
 For this, use the [compute capability](https://developer.nvidia.com/cuda-gpus) for your GPU while dropping the decimal point.
 For example, compute capability 7.5 (for the Nvidia Titan RTX used below) becomes "sm_75".
+
+Note: This can take a few hours to build, as it builds a version of [clang](https://clang.llvm.org/) from source.
 
 ### Dev Container
 
@@ -125,6 +201,8 @@ If your machine runs out of memory (RAM) when building many executables in paral
 For example, appending `-j4` limits the number of parallel builds to 4.
 You can also just build the executables for the individual use cases;
 for this, we give the build instructions below.
+
+Note: Building some or all of the examples can take several hours.
 
 
 ## Run Experiments 🚀
