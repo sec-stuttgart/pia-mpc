@@ -41,3 +41,6 @@ add_custom_target(servers-multiply
 add_custom_target(spdz-servers-multiply
     DEPENDS ${BENCH_MULTIPLY_SPDZ_SERVERS}
 )
+add_custom_target(benchmark-multiply
+    DEPENDS servers-multiply spdz-servers-multiply
+)

@@ -123,6 +123,8 @@ cmake --build --preset default
 Note: This builds multiple executables (one for each party and use case).
 If your machine runs out of memory (RAM) when building many executables in parallel, reduce the build parallelism.
 For example, appending `-j4` limits the number of parallel builds to 4.
+You can also just build the executables for the individual use cases;
+for this, we give the build instructions below.
 
 
 ## Run Experiments 🚀
@@ -148,6 +150,12 @@ This is why the commands should be run *outside* of a container.
 ### Verifying the Authentication
 
 *(Inside the container:)*
+
+Build instructions (if you did not build everything above):
+```bash
+# build
+cmake --build --preset default --target verify-authentication
+```
 
 The following runs only the verification of a single authentication operation.
 Afterwards, the scripts prints the average verification time (for 64 and 128 bit plaintext size).
@@ -175,6 +183,12 @@ Detailed results can be found in "./reports/{TIMESTAMP}-authentication.tsv".
 
 *(Inside the container:)*
 
+Build instructions (if you did not build everything above):
+```bash
+# build
+cmake --build --preset default --target verify-macs
+```
+
 The following runs only the MAC tag check.
 Afterwards, the scripts prints the average verification time (for 64 and 128 bit plaintext size and for 2 to 32 parties; the 2 party result was reported in the paper).
 The parameters indicate the number of MAC tags to check.
@@ -198,6 +212,14 @@ Detailed results can be found in "./reports/{TIMESTAMP}-mac.tsv".
 
 
 ### Multiplication Benchmark
+
+*(Inside the container:)*
+
+Build instructions (if you did not build everything above):
+```bash
+# build
+cmake --build --preset default --target benchmark-multiply
+```
 
 *(Inside the Python virtual environment:)*
 
@@ -232,6 +254,14 @@ This produces plots and detailed results in the "./reports/bench-multiply" direc
 
 ### Secure Aggregation Online Phase
 
+*(Inside the container:)*
+
+Build instructions (if you did not build everything above):
+```bash
+# build
+cmake --build --preset default --target secure-aggregation-online
+```
+
 *(Inside the Python virtual environment:)*
 
 For the secure aggregation online phase, run the following.
@@ -264,6 +294,14 @@ This produces plots and detailed results in the "./reports/secure-aggregation" d
 
 
 ### Secure Aggregation Offline Phase
+
+*(Inside the container:)*
+
+Build instructions (if you did not build everything above):
+```bash
+# build
+cmake --build --preset default --target secure-aggregation-offline
+```
 
 *(Inside the Python virtual environment:)*
 

@@ -114,3 +114,9 @@ add_custom_target(spdz-servers
 add_custom_target(spdz-offline
     DEPENDS ${SECURE_AGGREGATION_SPDZ_OFFLINE}
 )
+add_custom_target(secure-aggregation-online
+    DEPENDS clients servers spdz-clients spdz-servers
+)
+add_custom_target(secure-aggregation-offline
+    DEPENDS offline spdz-offline
+)
