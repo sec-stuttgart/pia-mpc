@@ -213,13 +213,15 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-Note: This builds multiple executables (one for each party and use case).
+Note:
+This builds multiple executables (one for each party and use case).
 If your machine runs out of memory (RAM) when building many executables in parallel, reduce the build parallelism.
 For example, appending `-j4` limits the number of parallel builds to 4.
 You can also just build the executables for the individual use cases;
 for this, we give the build instructions below.
 
-Note: Building some or all of the examples can take several hours.
+Note:
+Building some or all of the examples can take several hours.
 
 
 ## Run Experiments 🚀
@@ -242,6 +244,10 @@ The following shows how to reproduce the results for
 For the latter three experiments, we use a Python script to orchestrate multiple Docker containers.
 This is why the commands should be run *outside* of a container.
 
+Note:
+All scripts below run experiments ten times and average the results.
+For each Python script, you can use specify the number of re-runs by appending an additional command line option, for example, `--repeats 20`.
+
 ### Verifying the Authentication
 
 *(Inside the container:)*
@@ -254,7 +260,7 @@ cmake --build --preset default --target verify-authentication
 
 The following runs only the verification of a single authentication operation.
 Afterwards, the scripts prints the average verification time (for 64 and 128 bit plaintext size).
-The parameters indicate the number of ciphertexts to check.
+The script parameters indicate the number of ciphertexts to check.
 The option `--processors -1` indicates that a GPU should be used.
 
 ```bash
@@ -285,8 +291,8 @@ cmake --build --preset default --target verify-macs
 ```
 
 The following runs only the MAC tag check.
-Afterwards, the scripts prints the average verification time (for 64 and 128 bit plaintext size and for 2 to 32 parties; the 2 party result was reported in the paper).
-The parameters indicate the number of MAC tags to check.
+Afterwards, the scripts prints the average verification time (for 64 and 128 bit plaintext size and for 2 parties).
+The script parameters indicate the number of MAC tags to check.
 The option `--processors -1` indicates that a GPU should be used.
 
 ```bash
@@ -304,6 +310,9 @@ python3 scripts/mac.py 524288000 262144000 --processors -1
 ```
 
 Detailed results can be found in "./reports/{TIMESTAMP}-mac.tsv".
+You can run the MAC check for more parties by appending `--party-counts "[2, 4, 8, 16, 32]"` to the command (the 2 party result was reported in the paper).
+
+Note: Supporting another number of parties for this experiments requires modifying [./CMakeLists.txt](CMakeLists.txt) to compile the binary for party counts that are not in the above list.
 
 
 ### Multiplication Benchmark
@@ -334,6 +343,7 @@ Note:
 We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the array `[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]` if they are too big for your machine.
+If you are just trying to run the examples, try the compact range `(1,11)` that is interpreted as Python `range(1, 11)`, that is the same as `[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]`.
 
 
 Plot the results with:
@@ -376,6 +386,7 @@ Note:
 We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the array `[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]` if they are too big for your machine.
+If you are just trying to run the examples, try the compact range `(1,11)` that is interpreted as Python `range(1, 11)`.
 
 Plot the results with:
 ```bash
@@ -418,6 +429,7 @@ We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the range `(1,13)` if they are too big for your machine.
 This is what we did for the SPDZ benchmark as it used too much RAM.
+If you are just trying to run the examples, try the compact range `(1,3)` that is interpreted as Python `range(1, 3)`.
 
 Plot the results with:
 ```bash

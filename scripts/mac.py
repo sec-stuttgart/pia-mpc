@@ -22,7 +22,7 @@ def experiment(prefix, p, n, count, processor):
 
 now = f"{datetime.now(timezone.utc).astimezone():%Y-%m-%d-%H%M%S}"
 
-def main(*counts, prefix="build/Release/mac", primes=[64, 128], party_counts=[2, 4, 8, 16, 32], repeats=10, processors=0, data=f"reports/{now}-mac.tsv"):
+def main(*counts, prefix="build/Release/mac", primes=[64, 128], party_counts=[2], repeats=10, processors=0, data=f"reports/{now}-mac.tsv"):
     assert len(counts) > 0
     while len(counts) < len(primes):
         counts += [counts[-1]]
