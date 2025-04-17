@@ -11,7 +11,14 @@ int main(int argc, char** argv)
     auto run = comp::queue(sycl::queue{processors < 0 ? sycl::gpu_selector_v : sycl::cpu_selector_v});
     auto net = comm::queue(id, comm::config::read_env(config));
 
-    fmt::print("[Party {}, client, {} servers, {} clients, {} * {} = {} elements, device info, {:fn:nhU}]\n", id.value, compute_parties.size, input_parties.size, shape.size(), N, element_shape.size(), run.info());
+    try
+    {
+        fmt::print("[Party {}, client, {} servers, {} clients, {} * {} = {} elements, device info, {:fn:nhU}]\n", id.value, compute_parties.size, input_parties.size, shape.size(), N, element_shape.size(), run.info());
+    }
+    catch (...)
+    {
+        fmt::print("[Party {}, client, {} servers, {} clients, {} * {} = {} elements, failed to get device info]\n", id.value, compute_parties.size, input_parties.size, shape.size(), N, element_shape.size());
+    }
 
     auto input = run(generate_input(input_parties.index_of(id), shape));
 

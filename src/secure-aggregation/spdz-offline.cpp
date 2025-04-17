@@ -249,7 +249,14 @@ int main(int argc, char** argv)
     auto run = comp::queue(sycl::queue{processors < 0 ? sycl::gpu_selector_v : sycl::cpu_selector_v});
     auto net = comm::queue(id, comm::config::read_env(config));
 
-    fmt::print("[Party {}, server, {} servers, {} * {} - 1 = {} elements, device info, {:fn:nhU}]\n", id.value, compute_parties.size, shape.size(), N, element_shape.size() - 1, run.info());
+    try
+    {
+        fmt::print("[Party {}, server, {} servers, {} * {} - 1 = {} elements, device info, {:fn:nhU}]\n", id.value, compute_parties.size, shape.size(), N, element_shape.size() - 1, run.info());
+    }
+    catch (...)
+    {
+        fmt::print("[Party {}, server, {} servers, {} * {} - 1 = {} elements, failed to get device info]\n", id.value, compute_parties.size, shape.size(), N, element_shape.size() - 1);
+    }
 
     auto mac_share = run(generate_mac_share(id));
 
