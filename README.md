@@ -279,6 +279,9 @@ python3 scripts/authentication.py 4000 2000 --processors -1
 
 Detailed results can be found in "./reports/{TIMESTAMP}-authentication.tsv".
 
+Note:
+You can use smaller problem sizes if you are just trying to run the examples, for example, `python3 scripts/authentication.py 5 2`.
+
 
 ### Verifying MACs
 
@@ -313,6 +316,9 @@ Detailed results can be found in "./reports/{TIMESTAMP}-mac.tsv".
 You can run the MAC check for more parties by appending `--party-counts "[2, 4, 8, 16, 32]"` to the command (the 2 party result was reported in the paper).
 
 Note: Supporting another number of parties for this experiments requires modifying [./CMakeLists.txt](CMakeLists.txt) to compile the binary for party counts that are not in the above list.
+
+Note:
+You can use smaller problem sizes if you are just trying to run the examples, for example, `python3 scripts/mac.py 327680 131072`.
 
 
 ### Multiplication Benchmark
