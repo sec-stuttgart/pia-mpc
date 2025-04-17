@@ -116,6 +116,23 @@ However, there are some steps that need to run *outside* of a container, for whi
 We highlight these cases below.
 
 
+## Systems Requirements 💻
+
+In addition to a Docker and Python installation, the system running Docker also needs kernel support for network scheduling and emulation.
+The latter is enabled by default for some Linux distributions (for example, Ubuntu) but not for others (for example, Fedora) and you might have to enable it (see [example for Fedora](https://stackoverflow.com/q/64755248)).
+Additionally, network scheduling is [not enabled on WSL2 by default](https://github.com/microsoft/WSL/issues/6065).
+
+Our software uses homomorphic encryption, which produces relatively large ciphertexts.
+Additionally, our software contains multiple binaries that need to be compiled and linked.
+Therefore, you might need a relatively large amount of RAM to build and run the software.
+Our development environment has 16 GB of RAM.
+Below, we give some hints on how to reduce the memory load by reducing the build parallelism and how to reduce the problem sizes to run smaller experiments on resource constrained devices.
+
+⚠️ Trying to build the below containers on M-series Macs might fail.
+Similar failures have been observed on Macs with ARM processors by others (see this [example](https://github.com/docker/buildx/issues/2028)).
+If possible, try running the software with an x86-64 processor (Intel and AMD should work).
+
+
 ## Preparing the Container Environment 🧰
 
 We tested the following containerized build environments for our software:
