@@ -150,12 +150,15 @@ docker buildx build --tag hmpc --target development --build-arg user_id="$(id -u
 
 # Alternative for last step:
 # build CUDA-enabled hmpc container image
-docker buildx build --tag hmpc --build-arg cuda_version="${CUDA_VERSION:?}" --build-arg cuda_arch=sm_70 --build-arg user_id="$(id -u)" --build-arg group_id="$(id -g)" --build-context cuda="${CUDA_HOME:?}" --file hmpc/.devcontainer/cuda/Containerfile hmpc
+docker buildx build --tag hmpc --target development --build-arg cuda_version="${CUDA_VERSION:?}" --build-arg cuda_arch=sm_70 --build-arg user_id="$(id -u)" --build-arg group_id="$(id -g)" --build-context cuda="${CUDA_HOME:?}" --file hmpc/.devcontainer/cuda/Containerfile hmpc
 ```
 
 Note: For the CUDA container, you can replace the CUDA architecture (`cuda_arch`) by a value matching your GPU.
 For this, use the [compute capability](https://developer.nvidia.com/cuda-gpus) for your GPU while dropping the decimal point.
 For example, compute capability 7.5 (for the Nvidia Titan RTX used below) becomes "sm_75".
+You also need the environment variables "CUDA_VERSION" and "CUDA_HOME" to be set to appropriate values.
+"CUDA_VERSION" should match the installed CUDA version, for example, 11.6; you can run `nvcc --version` to find the right version for your installation.
+"CUDA_HOME" should point to the installed CUDA toolkit, for example, "/usr/local/cuda-11.6"; your installation path might vary based on your operating system and how you installed CUDA but you might have the "CUDA_PATH" variable set (you can use this value also for "CUDA_HOME").
 
 Note: This can take a few hours to build, as it builds a version of [clang](https://clang.llvm.org/) from source.
 
