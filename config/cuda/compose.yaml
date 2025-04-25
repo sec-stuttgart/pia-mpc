@@ -7,7 +7,7 @@ services:
     - NET_ADMIN
     volumes:
     - "../..:/workspaces/pia-mpc"
-    - "${CUDA_HOME:?}:/opt/cuda-${CUDA_VERSION:?}"
+    - "${CUDA_HOME:?}:/opt/cuda"
     deploy:
       resources:
         reservations:
