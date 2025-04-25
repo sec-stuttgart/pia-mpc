@@ -312,7 +312,7 @@ def run_only(name, counts=[1], gpu=False, path="build/secure-aggregation/Release
     with Compose(compose, server=party_count) as compose, tqdm(total=len(counts) * len(repeats) + (1 if setup else 0), leave=False) as progress:
         if setup:
             progress.set_description("Setup")
-            _setup(compose, config, compute_party_count=party_count, input_party_count=2, all_party_count=party_count)
+            _setup(compose, config, compute_party_count=party_count, input_party_count=2)
             progress.update()
         if compose:
             env = dict(HMPC_CONFIG=f"config/compose-{party_count}-2.mpc.yaml")
