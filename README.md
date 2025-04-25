@@ -228,9 +228,9 @@ Building some or all of the examples can take several hours.
 ## Run Experiments 🚀
 
 For our experiments, we used the following machines:
-1. a laptop with an Intel Core i7-8565U CPU, 4 cores, 1.80 GHz
-2. a server with an Intel Core i9-9940X CPU, 14 cores, 3.30 GHz; and an Nvidia Titan RTX GPU
-3. an HPC node with an Intel Xeon Gold 6230 CPU, 40 cores, 2.1 GHz; and an Nvidia A100 80 GB GPU
+1. a laptop with an Intel Core i7-8565U CPU, 4 cores, 1.80 GHz, with 16 GB RAM
+2. a server with an Intel Core i9-9940X CPU, 14 cores, 3.30 GHz; and an Nvidia Titan RTX GPU with 24 GB VRAM
+3. an HPC node with an Intel Xeon Gold 6230 CPU, 40 cores, 2.1 GHz, with 196 GB RAM; and an Nvidia A100 GPU with 80 GB VRAM
 
 Note: We rebuilt the executables for each of the three machines.
 You should rebuild them at least for every different GPU that you want to run the experiments with.
@@ -282,6 +282,7 @@ Detailed results can be found in "./reports/{TIMESTAMP}-authentication.tsv".
 
 Note:
 You can use smaller problem sizes if you are just trying to run the examples, for example, `python3 scripts/authentication.py 5 2`.
+We chose the problem sizes to roughly fit the different machines mentioned above (16GB RAM, 96 GB RAM, 24 GB VRAM, 80 GB VRAM).
 
 
 ### Verifying MACs
@@ -320,6 +321,7 @@ Note: Supporting another number of parties for this experiments requires modifyi
 
 Note:
 You can use smaller problem sizes if you are just trying to run the examples, for example, `python3 scripts/mac.py 327680 131072`.
+We chose the problem sizes to roughly fit the different machines mentioned above (16GB RAM, 96 GB RAM, 24 GB VRAM, 80 GB VRAM).
 
 
 ### Multiplication Benchmark
@@ -350,6 +352,7 @@ Note:
 We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the array `[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]` if they are too big for your machine.
+We chose the problem sizes to fit the "server" machine (24 GB VRAM).
 If you are just trying to run the examples, try the compact range `(1,11)` that is interpreted as Python `range(1, 11)`, that is the same as `[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]`.
 
 
@@ -393,6 +396,7 @@ Note:
 We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the array `[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]` if they are too big for your machine.
+We chose the problem sizes to fit the "server" machine (24 GB VRAM).
 If you are just trying to run the examples, try the compact range `(1,11)` that is interpreted as Python `range(1, 11)`.
 
 Plot the results with:
@@ -436,6 +440,7 @@ We performed this experiment on the "server" machine, only.
 Omit the `--gpu` option when not running the GPU-enabled version of the binaries.
 Additionally, you can reduce the problem sizes given as the range `(1,13)` if they are too big for your machine.
 This is what we did for the SPDZ benchmark as it used too much RAM.
+We chose the problem sizes to fit the "server" machine (24 GB VRAM).
 If you are just trying to run the examples, try the compact range `(1,3)` that is interpreted as Python `range(1, 3)`.
 
 Plot the results with:
