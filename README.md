@@ -119,7 +119,7 @@ We highlight these cases below.
 ## Systems Requirements 💻
 
 In addition to a Docker and Python installation, the system running Docker also needs kernel support for network scheduling and emulation.
-The latter is enabled by default for some Linux distributions (for example, Ubuntu) but not for others (for example, Fedora) and you might have to enable it (see [example for Fedora](https://stackoverflow.com/q/64755248)).
+The latter is enabled by default for some Linux distributions (for example, Ubuntu) but not for others (for example, Fedora) and you might have to enable it (see [example for Fedora](https://stackoverflow.com/q/64755248): install the "kernel-modules-extra" package and run `sudo modprobe sch_netem` to enable network emulation).
 Additionally, network scheduling is [not enabled on WSL2 by default](https://github.com/microsoft/WSL/issues/6065).
 
 Our software uses homomorphic encryption, which produces relatively large ciphertexts.
