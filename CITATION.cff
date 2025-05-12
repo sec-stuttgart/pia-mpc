@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper from the 'preferred-citation' section."
+authors:
+- family-names: Rivinius
+  given-names: Marc
+  orcid: https://orcid.org/0000-0001-8005-8365
+title: "MPC with Publicly Identifiable Abort from Pseudorandomness and Homomorphic Encryption (Artifact)"
+version: v0.5.2
+date-released: 2025-04-28
+url: https://github.com/sec-stuttgart/pia-mpc
+license: MIT
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: Rivinius
+    given-names: Marc
+    orcid: https://orcid.org/0000-0001-8005-8365
+  title: "MPC with Publicly Identifiable Abort from Pseudorandomness and Homomorphic Encryption"
+  doi: 10.1007/978-3-031-91092-0_10
+  conference:
+    name: "Eurocrypt 2025"
+  start: 270
+  end: 300
+  year: 2025
